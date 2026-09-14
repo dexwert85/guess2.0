@@ -13,12 +13,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -30,14 +26,19 @@ public class MainActivity extends AppCompatActivity {
     private EditText pickEditText;
     private Button submitButton;
     private CountDownTimer countDownTimer;
-    private boolean isTimerStarted = false;
-    private int remainingSeconds = 0;
+    private boolean isTimerStarted = false; // Prevents timer from restarting on every keypress
+    private int remainingSeconds = 0;      // Tracks remaining seconds to calculate bonus points
 
+    /**
+     * Called when the activity is starting. Binds UI views, sets up adapter
+     * for difficulty spinner, configures text listeners, and sets button actions.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Bind layout XML views to Java variables
         scoreTextView = findViewById(R.id.score);
         attemptsTextView = findViewById(R.id.attempts);
         timerTextView = findViewById(R.id.timer);
@@ -45,17 +46,19 @@ public class MainActivity extends AppCompatActivity {
         pickEditText = findViewById(R.id.pick);
         submitButton = findViewById(R.id.submit);
 
+        // Instantiate game model with initial EASY difficulty
         game = new GuessGame(GuessGame.Difficulty.EASY);
 
+        // Populate Difficulty Spinner with Enum values (EASY, MEDIUM, HARD)
         ArrayAdapter<GuessGame.Difficulty> adapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_spinner_item,
                 GuessGame.Difficulty.values()
         );
-
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         difficultySpinner.setAdapter(adapter);
 
+        // Trigger new game whenever user picks a different difficulty from spinner
         difficultySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -67,12 +70,14 @@ public class MainActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
+        // Listen to user typing: starts countdown on the very first character entered
         pickEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Start timer only if it hasn't started yet, input field has text, and game is active
                 if (!isTimerStarted && s.length() > 0 && !game.isGameOver()) {
                     isTimerStarted = true;
                     startTimer();
@@ -83,9 +88,15 @@ public class MainActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
+        // Process guess attempt when Submit button is clicked
         submitButton.setOnClickListener(v -> handleGuess());
     }
 
+    /**
+     * Resets game logic, cancels running timers, clears flags, and updates the UI for a new round.
+     *
+     * @param difficulty Selected difficulty level for the new round.
+     */
     private void startNewGame(GuessGame.Difficulty difficulty) {
         cancelTimer();
         isTimerStarted = false;
@@ -94,8 +105,12 @@ public class MainActivity extends AppCompatActivity {
         updateUiState();
     }
 
+    /**
+     * Initializes and starts the CountDownTimer object.
+     * Decrements seconds each tick and triggers time-out loss on finish.
+     */
     private void startTimer() {
-        cancelTimer();
+        cancelTimer(); // Stop any active countdown thread
 
         long totalMillis = game.getCurrentDifficulty().getSeconds() * 1000L;
 
@@ -116,6 +131,9 @@ public class MainActivity extends AppCompatActivity {
         }.start();
     }
 
+    /**
+     * Synchronizes UI fields (score, attempts left, timer, hint) with current game state.
+     */
     private void updateUiState() {
         scoreTextView.setText("Score: " + game.getTotalScore());
         attemptsTextView.setText("Attempts Left: " + game.getRemainingAttempts());
@@ -124,6 +142,10 @@ public class MainActivity extends AppCompatActivity {
         pickEditText.setText("");
     }
 
+    /**
+     * Reads and validates input, evaluates guess via GuessGame engine,
+     * updates attempts, and displays hints or win/loss dialogs.
+     */
     private void handleGuess() {
         if (game.isGameOver()) return;
 
@@ -136,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
         int userGuess = Integer.parseInt(input);
         String result = game.makeGuess(userGuess);
 
-        // Update attempts UI after guess
+        // Update remaining attempts text after guess submission
         attemptsTextView.setText("Attempts Left: " + game.getRemainingAttempts());
 
         switch (result) {
@@ -164,6 +186,13 @@ public class MainActivity extends AppCompatActivity {
         pickEditText.setText("");
     }
 
+    /**
+     * Creates and presents a non-dismissible AlertDialog displaying win/lose results
+     * and a button to restart the game.
+     *
+     * @param title   Dialog title header text.
+     * @param message Body text showing final scores or answer details.
+     */
     private void showGameOverDialog(String title, String message) {
         cancelTimer();
 
@@ -178,12 +207,18 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    /**
+     * Safely stops the CountDownTimer object if active.
+     */
     private void cancelTimer() {
         if (countDownTimer != null) {
             countDownTimer.cancel();
         }
     }
 
+    /**
+     * Lifecycle callback ensuring background timers are terminated when Activity is destroyed.
+     */
     @Override
     protected void onDestroy() {
         super.onDestroy();
