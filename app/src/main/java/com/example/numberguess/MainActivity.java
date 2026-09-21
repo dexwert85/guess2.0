@@ -16,6 +16,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
+
 public class MainActivity extends AppCompatActivity {
 
     private GuessGame game;
@@ -24,10 +26,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView timerTextView;
     private Spinner difficultySpinner;
     private EditText pickEditText;
+    private EditText nameEditText;
     private Button submitButton;
     private CountDownTimer countDownTimer;
     private boolean isTimerStarted = false; // Prevents timer from restarting on every keypress
     private int remainingSeconds = 0;      // Tracks remaining seconds to calculate bonus points
+    private DBHelper db;
 
     /**
      * Called when the activity is starting. Binds UI views, sets up adapter
@@ -45,9 +49,11 @@ public class MainActivity extends AppCompatActivity {
         difficultySpinner = findViewById(R.id.spinner);
         pickEditText = findViewById(R.id.pick);
         submitButton = findViewById(R.id.submit);
+        nameEditText = findViewById(R.id.name);
 
         // Instantiate game model with initial EASY difficulty
         game = new GuessGame(GuessGame.Difficulty.EASY);
+        db = new DBHelper(this);
 
         // Populate Difficulty Spinner with Enum values (EASY, MEDIUM, HARD)
         ArrayAdapter<GuessGame.Difficulty> adapter = new ArrayAdapter<>(
@@ -90,6 +96,31 @@ public class MainActivity extends AppCompatActivity {
 
         // Process guess attempt when Submit button is clicked
         submitButton.setOnClickListener(v -> handleGuess());
+    }
+
+    private void updateDB() {
+        String name = nameEditText.getText().toString().trim();
+        if (name.isEmpty()) {
+            name = "Player"; // Default name
+        }
+
+        int currentScore = game.getTotalScore();
+        ArrayList<ModelUser> users = db.genericSelectByUserName(name);
+
+        if (!users.isEmpty()) {
+            // Player exists: update if current score is higher than saved score
+            ModelUser existingUser = users.get(0);
+            if (currentScore > existingUser.getScore()) {
+                existingUser.setScore(currentScore);
+                db.update(existingUser);
+                Toast.makeText(this, "New High Score Saved!", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            // New player: insert record
+            ModelUser newUser = new ModelUser(name, currentScore, 0);
+            db.insert(newUser);
+            Toast.makeText(this, "Score Saved!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -166,6 +197,7 @@ public class MainActivity extends AppCompatActivity {
                 cancelTimer();
                 int earnedPoints = game.addWinScore(remainingSeconds);
                 scoreTextView.setText("Score: " + game.getTotalScore());
+                updateDB();
                 showGameOverDialog("You Won! 🎉", "Earned " + earnedPoints + " points!\nTotal Score: " + game.getTotalScore());
                 break;
 
