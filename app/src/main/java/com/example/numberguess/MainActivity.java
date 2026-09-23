@@ -98,6 +98,10 @@ public class MainActivity extends AppCompatActivity {
         submitButton.setOnClickListener(v -> handleGuess());
     }
 
+    /**
+     * Updates the database with the highest score.
+     * If user with name not found create new one.
+     */
     private void updateDB() {
         String name = nameEditText.getText().toString().trim();
         if (name.isEmpty()) {
