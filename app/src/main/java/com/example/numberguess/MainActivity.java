@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -26,17 +27,13 @@ public class MainActivity extends AppCompatActivity {
     private TextView timerTextView;
     private Spinner difficultySpinner;
     private EditText pickEditText;
-    private EditText nameEditText;
     private Button submitButton;
     private CountDownTimer countDownTimer;
     private boolean isTimerStarted = false; // Prevents timer from restarting on every keypress
     private int remainingSeconds = 0;      // Tracks remaining seconds to calculate bonus points
     private DBHelper db;
+    private ModelUser currentUser;        // Holds currently logged-in user object
 
-    /**
-     * Called when the activity is starting. Binds UI views, sets up adapter
-     * for difficulty spinner, configures text listeners, and sets button actions.
-     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
         difficultySpinner = findViewById(R.id.spinner);
         pickEditText = findViewById(R.id.pick);
         submitButton = findViewById(R.id.submit);
-        nameEditText = findViewById(R.id.name);
 
         // Instantiate game model with initial EASY difficulty
         game = new GuessGame(GuessGame.Difficulty.EASY);
@@ -96,34 +92,157 @@ public class MainActivity extends AppCompatActivity {
 
         // Process guess attempt when Submit button is clicked
         submitButton.setOnClickListener(v -> handleGuess());
+
+        // Prompt user to log in or sign up when activity launches
+        showLoginDialog();
     }
 
     /**
-     * Updates the database with the highest score.
-     * If user with name not found create new one.
+     * Displays custom login dialog inflated from XML layout.
      */
-    private void updateDB() {
-        String name = nameEditText.getText().toString().trim();
-        if (name.isEmpty()) {
-            name = "Player"; // Default name
+    private void showLoginDialog() {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.login_dialog, null);
+
+        EditText etUsername = dialogView.findViewById(R.id.et_login_username);
+        EditText etPassword = dialogView.findViewById(R.id.et_login_password);
+        Button btnLogin = dialogView.findViewById(R.id.login);
+        Button btnSignUp = dialogView.findViewById(R.id.sign_up);
+
+        btnLogin.setText("Login");
+        btnSignUp.setText("Sign Up");
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        btnLogin.setOnClickListener(v -> {
+            String username = etUsername.getText().toString().trim();
+            String password = etPassword.getText().toString().trim();
+
+            if (username.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (db.checkUser(username, password)) {
+                ArrayList<ModelUser> users = db.genericSelectByUserName(username);
+                if (!users.isEmpty()) {
+                    currentUser = users.get(0);
+                    Toast.makeText(this, "Welcome back, " + currentUser.getUserName() + "!", Toast.LENGTH_SHORT).show();
+                }
+                dialog.dismiss();
+            } else {
+                Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        btnSignUp.setOnClickListener(v -> {
+            dialog.dismiss();
+            showSignUpDialog();
+        });
+
+        dialog.show();
+    }
+
+    /**
+     * Displays custom sign up dialog with password validation rule checks.
+     */
+    private void showSignUpDialog() {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.signup_dialog, null);
+
+        EditText etUsername = dialogView.findViewById(R.id.et_signup_username);
+        EditText etPassword = dialogView.findViewById(R.id.et_signup_password);
+        EditText etConfirmPassword = dialogView.findViewById(R.id.et_signup_confirm_password);
+        Button btnSubmit = dialogView.findViewById(R.id.btn_signup_submit);
+        Button btnBack = dialogView.findViewById(R.id.btn_signup_back);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        btnSubmit.setOnClickListener(v -> {
+            String username = etUsername.getText().toString().trim();
+            String password = etPassword.getText().toString().trim();
+            String confirmPassword = etConfirmPassword.getText().toString().trim();
+
+            if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (!password.equals(confirmPassword)) {
+                Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (!isValidPassword(password)) {
+                Toast.makeText(this, "Password must be at least 6 characters long, contain at least 1 uppercase letter, and 1 number", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (db.registerUser(username, password)) {
+                ArrayList<ModelUser> users = db.genericSelectByUserName(username);
+                if (!users.isEmpty()) {
+                    currentUser = users.get(0);
+                } else {
+                    currentUser = new ModelUser(username, password, 0, 0);
+                }
+                Toast.makeText(this, "Account created successfully!", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+            } else {
+                Toast.makeText(this, "Username already exists", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        btnBack.setOnClickListener(v -> {
+            dialog.dismiss();
+            showLoginDialog();
+        });
+
+        dialog.show();
+    }
+
+    /**
+     * Validates password rules:
+     * - Minimum 6 characters
+     * - At least 1 uppercase letter
+     * - At least 1 digit/number
+     */
+    private boolean isValidPassword(String password) {
+        if (password == null || password.length() < 6) {
+            return false;
         }
 
-        int currentScore = game.getTotalScore();
-        ArrayList<ModelUser> users = db.genericSelectByUserName(name);
+        boolean hasUppercase = false;
+        boolean hasDigit = false;
 
-        if (!users.isEmpty()) {
-            // Player exists: update if current score is higher than saved score
-            ModelUser existingUser = users.get(0);
-            if (currentScore > existingUser.getScore()) {
-                existingUser.setScore(currentScore);
-                db.update(existingUser);
-                Toast.makeText(this, "New High Score Saved!", Toast.LENGTH_SHORT).show();
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUppercase = true;
+            } else if (Character.isDigit(c)) {
+                hasDigit = true;
             }
-        } else {
-            // New player: insert record
-            ModelUser newUser = new ModelUser(name, currentScore, 0);
-            db.insert(newUser);
-            Toast.makeText(this, "Score Saved!", Toast.LENGTH_SHORT).show();
+        }
+
+        return hasUppercase && hasDigit;
+    }
+
+    /**
+     * Updates the database with the highest score using the logged-in currentUser model.
+     */
+    private void updateDB() {
+        if (currentUser == null) return;
+
+        int currentScore = game.getTotalScore();
+
+        if (currentScore > currentUser.getScore()) {
+            currentUser.setScore(currentScore);
+            db.update(currentUser);
+            Toast.makeText(this, "New High Score Saved!", Toast.LENGTH_SHORT).show();
         }
     }
 
