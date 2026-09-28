@@ -22,6 +22,7 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity {
 
     private GuessGame game;
+    private TextView welcomeTextView;
     private TextView scoreTextView;
     private TextView attemptsTextView;
     private TextView timerTextView;
@@ -40,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Bind layout XML views to Java variables
+        welcomeTextView = findViewById(R.id.welcome);
         scoreTextView = findViewById(R.id.score);
         attemptsTextView = findViewById(R.id.attempts);
         timerTextView = findViewById(R.id.timer);
@@ -130,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
                 ArrayList<ModelUser> users = db.genericSelectByUserName(username);
                 if (!users.isEmpty()) {
                     currentUser = users.get(0);
-                    Toast.makeText(this, "Welcome back, " + currentUser.getUserName() + "!", Toast.LENGTH_SHORT).show();
+                    updateWelcomeHeader();
                 }
                 dialog.dismiss();
             } else {
@@ -154,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
         View dialogView = inflater.inflate(R.layout.signup_dialog, null);
 
         EditText etUsername = dialogView.findViewById(R.id.et_signup_username);
+        EditText etName = dialogView.findViewById(R.id.et_signup_name);
         EditText etPassword = dialogView.findViewById(R.id.et_signup_password);
         EditText etConfirmPassword = dialogView.findViewById(R.id.et_signup_confirm_password);
         Button btnSubmit = dialogView.findViewById(R.id.btn_signup_submit);
@@ -166,10 +169,11 @@ public class MainActivity extends AppCompatActivity {
 
         btnSubmit.setOnClickListener(v -> {
             String username = etUsername.getText().toString().trim();
+            String name = etName.getText().toString().trim();
             String password = etPassword.getText().toString().trim();
             String confirmPassword = etConfirmPassword.getText().toString().trim();
 
-            if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            if (username.isEmpty() || name.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
                 Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -184,13 +188,14 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            if (db.registerUser(username, password)) {
+            if (db.registerUser(username, name, password)) {
                 ArrayList<ModelUser> users = db.genericSelectByUserName(username);
                 if (!users.isEmpty()) {
                     currentUser = users.get(0);
                 } else {
-                    currentUser = new ModelUser(username, password, 0, 0);
+                    currentUser = new ModelUser(username, name, password, 0, 0);
                 }
+                updateWelcomeHeader();
                 Toast.makeText(this, "Account created successfully!", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             } else {
@@ -204,6 +209,15 @@ public class MainActivity extends AppCompatActivity {
         });
 
         dialog.show();
+    }
+
+    /**
+     * Updates header TextView displaying "hello {name}".
+     */
+    private void updateWelcomeHeader() {
+        if (currentUser != null) {
+            welcomeTextView.setText("hello " + currentUser.getName());
+        }
     }
 
     /**

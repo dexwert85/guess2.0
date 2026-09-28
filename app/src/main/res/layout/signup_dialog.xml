@@ -17,7 +17,16 @@
         android:id="@+id/et_signup_username"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Username"
+        android:hint="Username (Login ID)"
+        android:inputType="textPersonName"
+        android:maxLines="1"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/et_signup_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Player Name"
         android:inputType="textPersonName"
         android:maxLines="1"
         android:layout_marginBottom="12dp" />
