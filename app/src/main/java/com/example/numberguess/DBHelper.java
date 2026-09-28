@@ -99,6 +99,43 @@ public class DBHelper extends SQLiteOpenHelper {
         return user;
     }
 
+    /**
+     * Fetches the top 3 players with the highest scores.
+     */
+    public ArrayList<ModelUser> getTop3Scores() {
+        database = getReadableDatabase();
+        ArrayList<ModelUser> topList = new ArrayList<>();
+
+        // Sort by score highest to lowest, limit to 3
+        String sortOrder = COLUMN_SCORE + " DESC";
+        Cursor cursor = database.query(
+                TABLE_RECORD,
+                allColumns,
+                null,
+                null,
+                null,
+                null,
+                sortOrder,
+                "3" // LIMIT 3
+        );
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                long id = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ID));
+                String username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME));
+                String password = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PASSWORD));
+                int score = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_SCORE));
+
+                topList.add(new ModelUser(username, name, password, score, id));
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        database.close();
+        return topList;
+    }
+
     public void deleteById(long id) {
         database = getWritableDatabase();
         database.delete(TABLE_RECORD, COLUMN_ID + " = " + id, null);

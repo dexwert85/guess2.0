@@ -67,4 +67,11 @@
         android:layout_marginTop="16dp"
         android:text="Submit" />
 
+    <Button
+        android:id="@+id/btn_high_scores"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="View Top 3 Scores 🏆" />
+
 </LinearLayout>

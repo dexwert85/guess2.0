@@ -1,5 +1,6 @@
 package com.example.numberguess;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.text.Editable;
@@ -34,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private int remainingSeconds = 0;      // Tracks remaining seconds to calculate bonus points
     private DBHelper db;
     private ModelUser currentUser;        // Holds currently logged-in user object
+    private Button highScoresButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
         difficultySpinner = findViewById(R.id.spinner);
         pickEditText = findViewById(R.id.pick);
         submitButton = findViewById(R.id.submit);
+        highScoresButton = findViewById(R.id.btn_high_scores);
 
         // Instantiate game model with initial EASY difficulty
         game = new GuessGame(GuessGame.Difficulty.EASY);
@@ -94,6 +97,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Process guess attempt when Submit button is clicked
         submitButton.setOnClickListener(v -> handleGuess());
+
+        highScoresButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, Score.class);
+            startActivity(intent);
+            finish();
+        });
 
         // Prompt user to log in or sign up when activity launches
         showLoginDialog();
